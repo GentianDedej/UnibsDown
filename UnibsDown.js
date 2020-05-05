@@ -82,8 +82,9 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
     console.info('\nAccess to unibs');
     const browser = await puppeteer.launch({
         // Switch to false if you need to login interactively
+        executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
         headless: false,// --------------------------------------------------------------------------------------------------------------MODIFICA QUI PER VEDERE LO SCHERMO
-        args: ['--disable-dev-shm-usage', '--lang=it-IT']
+        args: ['--lang=it-IT']
     });
 
     const page = await browser.newPage();
@@ -115,7 +116,8 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
     var links = null;
     try {
         // getting links from main page course
-        await page.goto('https://elearning.unibs.it/course/view.php?id=15476');
+        //await page.goto('https://elearning.unibs.it/course/view.php?id=15476'); automatica
+        await page.goto("https://elearning.unibs.it/course/view.php?id=15258");
         await page.waitForSelector("li.activity.kalvidres.modtype_kalvidres a[href]");
         const hrefLink = await page.evaluate(
             () => Array.from(
@@ -128,31 +130,32 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
     } catch (err) {
         console.error(err);
     }
-    var linkJD= links;
+    let linkJD= links;
     try {
-        for (let i=0; i<1;i++) { //links.length
+        for (let i=0; i<links.length;i++) { //links.length
             console.info(i);
             await page.goto(links[i]);
-            await page.waitForSelector('.kaltura-player-iframe');
-            const text =await page.evaluate(() => document.querySelector('.kaltura-player-iframe' ).src);
-            await page.goto(text);
-            await sleep(200);
-            console.info(text+ "\n");
-            const video = page.evaluate(function () {
-                return
-                document.querySelector("#kplayer_ifp").contentDocument.querySelector("#pid_kplayer");
-            }).then(function (video) {
-                console.log(video);
+            await page.waitForSelector('#contentframe');
+            const frameLink = await page.evaluate(() =>
+            {
+                return document.querySelector('#contentframe').ownerDocument.documentElement.querySelector(".kaltura-player-container").querySelector("iframe").ownerDocument.documentElement.querySelector(".kaltura-player-container").querySelector("iframe").src
             });
-
-            console.log(video)
+            await page.goto(frameLink);
+            await page.waitForSelector("#kplayer_ifp");
+            const video = await page.evaluate( () =>
+            {
+                return document.querySelector("#kplayer_ifp").contentDocument.documentElement.querySelector("#pid_kplayer").src
+            });
+            //const elFrame = await page.$eval("#kplayer_ifp", e => e.contentDocument.querySelector("#pid_kplayer").textContent);
+            //const video = await elFrame.evaluate(() => document.querySelector("#pid_kplayer"),el => el.getAttribute("src"));
+            //console.log(video)
             linkJD[i] = video;
         }
 
     } catch (err) {
         console.error(err);
     }
-    term.green(`\nStart getting downloadable link video: ${linkJD}\n`);
+    console.info(linkJD);
 
 
     /*for (let link of links) {
