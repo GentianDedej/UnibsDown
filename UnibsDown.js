@@ -1,49 +1,32 @@
 "use strict";
 
-const execSync = require('child_process').execSync;
 const puppeteer = require('puppeteer');
 const term = require("terminal-kit").terminal;
 const fs = require("fs");
-var https = require('https');
-const url = require('url');
-const path = require("path");
 const yargs = require('yargs');
 const request = require('request');
-const jqery = require("jquery");
 
 const argv = yargs.options({
-    v: { alias:'videoUrl', type: 'array', demandOption: true },
-    u: { alias:'username', type: 'string', demandOption: true, describe: 'Your Email' },
+    v: { alias:'videoUrl', type: 'array', demandOption: false },
+    u: { alias:'username', type: 'string', demandOption: true, describe: 'Your user' },
     p: { alias:'password', type: 'string', demandOption: false },
-    o: { alias:'outputDirectory', type: 'string', default: 'e:/unibs/test' },
-    q: { alias: 'quality', type: 'number', demandOption: false, describe: 'Video Quality, usually [0-5]'},
     k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
 })
     .help('h')
     .alias('h', 'help')
-    .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476"\n', "Standard usage")
+    .example('node $0 -u CODICEPERSONA \n', "Standard usage")
     .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476" "https://elearning.unibs.it/course/view.php?id=15506"\n', "Multiple videos download")
-    .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476" -q 4\n', "Define default quality download to avoid manual prompt")
-    .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476" -o "C:\\Lessons\\Videos"\n', "Define output directory (absoulte o relative path)")
-    .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476" -k\n', "Do not save the password into system keyring")
+    .example('node $0 -u CODICEPERSONA -k\n', "Do not save the password into system keyring")
     .argv;
-console.info('\nVideo URLs: %s', argv.videoUrls);
+//console.info('\nVideo URLs: %s', argv.videoUrls);
 if(typeof argv.username !== 'undefined') {console.info('Email: %s', argv.username);}
-console.info('Output Directory: %s\n', argv.outputDirectory);
 
-function sanityChecks() {
-    if (!fs.existsSync(argv.outputDirectory)) {
-        if (path.isAbsolute(argv.outputDirectory) || argv.outputDirectory[0] == '~') console.log('Creating output directory: ' + argv.outputDirectory);
-        else console.log('Creating output directory: ' + process.cwd() + path.sep + argv.outputDirectory);
-        try {
-            fs.mkdirSync(argv.outputDirectory, { recursive: true }); // use native API for nested directory. No recursive function needed, but compatible only with node v10 or later
-        } catch (e) {
-            term.red("Can not create nested directories. Node v10 or later is required\n");
-            process.exit();
-        }
-    }
-}
-async function downloadLink(videoUrls, email, password, outputDirectory) {
+
+const writeStream = fs.createWriteStream('linkDownload.txt');
+
+const pathName = writeStream.path;
+
+async function downloadLink(email, password) {
     email = await handleEmail(email);
     // handle password
     const keytar = require('keytar');
@@ -74,6 +57,7 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
                 await keytar.setPassword("UnibsDown", email, password);
                 console.log("Your password has been saved. Next time, you can avoid entering it!");
             } catch (e) {
+                console.info(e);
                 // X11 is missing. Can't use keytar
             }
         }
@@ -83,27 +67,19 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
     const browser = await puppeteer.launch({
         // Switch to false if you need to login interactively
         executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        headless: false,// --------------------------------------------------------------------------------------------------------------MODIFICA QUI PER VEDERE LO SCHERMO
+        headless: true,// --------------------------------------------------------------------------------------------------------------MODIFICA QUI PER VEDERE LO SCHERMO
         args: ['--lang=it-IT']
     });
 
     const page = await browser.newPage();
     console.log('Navigating to STS login page...');
-    console.info(email,password);
-    password="Gentian1998";
+    //console.info(email,password);
 
     await page.goto('https://elearning.unibs.it/login/index.php', {waitUntil: 'networkidle2'});
     await browser.waitForTarget(target => target.url().includes('idp.unibs.it/idp/profile/'), { timeout: 90000 });
     await unibsLogin(page,email, password);
-
-    //if(argv.unibs === true) {
-    //	await unibsLogin(page, email, password)
-    //} else {
-
-    //}
     await browser.waitForTarget(target => target.url().includes('elearning.unibs.it/'), { timeout: 90000 });
     console.log('We are logged in. ');
-    //console.info('https://elearning.unibs.it/course/view.php?id=15476',argv.videoUrls);
 //
 //
 //
@@ -112,12 +88,53 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
 //
 //
 //
+    let linkCorsi = null;
+    try{
+        await page.waitForSelector("#label_2_10");
+        await page.click("#expandable_branch_0_mycourses","left");
+        await page.keyboard.press("ArrowRight", {delay:50});
+        let sel = ".coursename";
+        const corsi = await page.evaluate( (sel) =>
+        {
+            let elements = Array.from(document.querySelectorAll(sel));
+            let linksCor = elements.map(element => {
+                return element.lastElementChild.href
+            })
+            return linksCor;
+        }, sel);
+        const titoliCor = await page.evaluate( (sel) =>
+        {
+            let elements = Array.from(document.querySelectorAll(sel));
+            let linksTitoli = elements.map(element => {
+                return element.lastElementChild.text
+            })
+            return linksTitoli;
+        }, sel);
+        linkCorsi = corsi;
+        //}
+        var questTit = "\n";
+        var count = 0;
+        for (let i = 0; i < titoliCor.length; i++) {
+             questTit = questTit + '[' + i + '] ' +  titoliCor[i] + '\n';
+             count = count+1;
+        }
+        console.info(count)
+        var corsoScelto = null;
+         do {
+             corsoScelto = parseInt(await promptQuestion(questTit,false));
+         }while (corsoScelto > count-1 || isNaN(corsoScelto));
+        console.info("Hai scelto: \t"+corsoScelto)
+    } catch (err) {
+        console.error(err);
+    }
 
-    var links = null;
+    let links = [];
+    let testi = [];
+    //--------------------------------------------------------------------------------------------------------QUI INIZIA IL CODICE CHE ESTRAE LINK
     try {
         // getting links from main page course
-        //await page.goto('https://elearning.unibs.it/course/view.php?id=15476'); automatica
-        await page.goto("https://elearning.unibs.it/course/view.php?id=15258");
+        console.info(linkCorsi[corsoScelto]);
+        await page.goto(linkCorsi[corsoScelto]);
         await page.waitForSelector("li.activity.kalvidres.modtype_kalvidres a[href]");
         const hrefLink = await page.evaluate(
             () => Array.from(
@@ -125,14 +142,22 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
                 a => a.getAttribute('href')
             )
         );
+        const hrefLinkDue = await page.evaluate(
+            () => Array.from(
+                document.querySelectorAll("li.activity.kalvidres.modtype_kalvidres a[href]"),
+                a => a.text
+            )
+        );
         links = hrefLink;
+        testi = hrefLinkDue;
         console.log(links);
     } catch (err) {
         console.error(err);
     }
-    let linkJD= links;
+    const linkJD= [];
+    let lung = links.length*2;
     try {
-        for (let i=0; i<links.length;i++) { //links.length
+        for (let i=0; i < lung ;i++) { //lung
             console.info(i);
             await page.goto(links[i]);
             await page.waitForSelector('#contentframe');
@@ -146,10 +171,13 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
             {
                 return document.querySelector("#kplayer_ifp").contentDocument.documentElement.querySelector("#pid_kplayer").src
             });
-            //const elFrame = await page.$eval("#kplayer_ifp", e => e.contentDocument.querySelector("#pid_kplayer").textContent);
-            //const video = await elFrame.evaluate(() => document.querySelector("#pid_kplayer"),el => el.getAttribute("src"));
-            //console.log(video)
-            linkJD[i] = video;
+            await page.goto(video);
+            await sleep(200)
+            let urlVideo = await page.url();
+            var senzaKVR = testi[i].split(" ").slice(0, -3).join(" ")
+            var senzaSpazi = senzaKVR.replace(/ /gi, "%20");
+            var linkDownload = urlVideo.replace(/a.mp4/gi, senzaSpazi +".mp4");
+            linkJD[i] = linkDownload;
         }
 
     } catch (err) {
@@ -157,41 +185,27 @@ async function downloadLink(videoUrls, email, password, outputDirectory) {
     }
     console.info(linkJD);
 
+     //--------------------------------------------------------------------------------------------------------QUI FINISCE IL CODICE CHE ESTRAE LINK
+    console.log("\nAt this point Chrome's job is done, shutting it down...");
 
-    /*for (let link of links) {
-        term.green(`\nStart getting downloadable link video: ${links}\n`);
-        try {
-            page.goto(link);
-            const urlGetter = await page.evaluate(
-                () => String.from(
-                    document.querySelectorAll("video.persistentNativePlayer.nativeEmbedPlayerPid"),
-                    a => a.getAttribute('src')
-                )
-            );
-            linkJD[i]=urlGetter;
-        } catch (err) {
-            console.error(err);
-        }
-    }
-    */
+// write each value of the array on the file breaking line
+    linkJD.forEach(value => writeStream.write(`${value}\n`));
 
+// the finish event is emitted when all data has been flushed from the stream
+    writeStream.on('finish', () => {
+        console.log(`wrote all the array data to file ${pathName}`);
+    });
 
-    /*for (let videoUrl of videoUrls) {
-        term.green(`\nStart getting videos links: ${videoUrl}\n`);
+// handle the errors on the write process
+    writeStream.on('error', (err) => {
+        console.error(`There is an error writing the file ${pathName} => ${err}`)
+    });
 
-    }*/
-        //  ------------------------------------------------------------------------------------------------------ CONTROLATO
+// close the stream
+    writeStream.end();
+    await browser.close();
+    term.green(`Done!\n`);
 
-        console.log("\nAt this point Chrome's job is done, shutting it down...");
-        //await browser.close();
-        term.green(`Done!\n`);
-
-
-    }
-function bob(document) {
-    var container = document.querySelector(".section img-text");
-    var matches = container.querySelectorAll("a[href]");
-    return matches;
 }
 
 async function unibsLogin(page, username, password) {
@@ -202,16 +216,8 @@ async function unibsLogin(page, username, password) {
     await page.keyboard.press('Enter');
     console.log('Filling in Servizi Online login form...');
 }
-function getElementsById(elementID){
-    var elementCollection = new Array();
-    var allElements = document.getElementsByTagName("*");
-    for(i = 0; i < allElements.length; i++){
-        if(allElements[i].id == elementID)
-            elementCollection.push(allElements[i]);
 
-    }
-    return elementCollection;
-}
+
 async function handleEmail(email) {
     // handle email reuse
     if (email == null) {
@@ -244,41 +250,6 @@ function saveConfig(infos) {
     } catch (e) {
         term.red('There has been an error saving your email/username offline. Continuing...\n');
     }
-}
-
-function doRequest(options) {
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && (res.statusCode == 200 || res.statusCode == 403)) {
-                resolve(body);
-            } else {
-                reject(error);
-            }
-        });
-    });
-}
-
-function promptResChoice(question, count) {
-    const readline = require('readline');
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    return new Promise(function (resolve, reject) {
-        var ask = function () {
-            rl.question(question, function (answer) {
-                if (!isNaN(answer) && parseInt(answer) < count && parseInt(answer) >= 0) {
-                    resolve(parseInt(answer), reject);
-                    rl.close();
-                } else {
-                    console.log("\n* Wrong * - Please enter a number between 0 and " + (count - 1) + "\n");
-                    ask();
-                }
-            });
-        };
-        ask();
-    });
 }
 
 async function promptPassword(question) {
@@ -329,36 +300,10 @@ function promptQuestion(question, hidden) {
 }
 
 
-/*function rmDir(dir, rmSelf) {
-    var files;
-    rmSelf = (rmSelf === undefined) ? true : rmSelf;
-    dir = dir + "/";
-    try {
-        files = fs.readdirSync(dir);
-    } catch (e) {
-        console.log("!Oops, directory not exist.");
-        return;
-    }
-    if (files.length > 0) {
-        files.forEach(function (x, i) {
-            if (fs.statSync(dir + x).isDirectory()) {
-                rmDir(dir + x);
-            } else {
-                fs.unlinkSync(dir + x);
-            }
-        });
-    }
-    if (rmSelf) {
-        // check if user want to delete the directory or just the files in this directory
-        fs.rmdirSync(dir);
-    }
-}*/
-
-
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-sanityChecks();
+
 let email = typeof argv.username === 'undefined' ? null : argv.username
 let psw = typeof argv.password === 'undefined' ? null : argv.password
-downloadLink(argv.videoUrls, email, psw, argv.outputDirectory);
+downloadLink(email, psw);
