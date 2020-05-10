@@ -37,7 +37,7 @@ async function downloadLink(email, password) {
                     password = result;
                 });
                 if (password === null) { // no previous password saved
-                    password = await promptPassword("Password not saved. Please enter your password, MStreamDownloader will not ask for it next time: ");
+                    password = await promptPassword("Password not saved. Please enter your password, UnibsDown will not ask for it next time: ");
                     await keytar.setPassword("UnibsDown", email, password);
                 } else {
                     console.log("\nReusing password saved in system's keychain!")
