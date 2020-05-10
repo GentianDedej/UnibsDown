@@ -43,7 +43,7 @@ async function downloadLink(email, password) {
                     console.log("\nReusing password saved in system's keychain!")
                 }
             } catch (e) {
-                console.log("X11 is not installed on this system. MStreamDownloader can't use keytar to save the password.")
+                console.log("X11 is not installed on this system. UnibsDown can't use keytar to save the password.")
                 password = await promptPassword("No problem, please manually enter your password: ");
             }
         } else {
