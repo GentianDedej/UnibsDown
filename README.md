@@ -12,6 +12,8 @@ Install Jdownloader form: https://jdownloader.org/
 - cd into the cloned folder
 - npm install to install dependencies
 
+[![Watch the video](https://img.youtube.com/vi/1jzTFG8SvBI/default.jpg)](https://youtu.be/1jzTFG8SvBI)
+
 Default usage:
 
 $ node UnibsDown.js -u CODICEPERSONA
