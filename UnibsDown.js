@@ -7,7 +7,6 @@ const yargs = require('yargs');
 const request = require('request');
 
 const argv = yargs.options({
-    v: { alias:'videoUrl', type: 'array', demandOption: false },
     u: { alias:'username', type: 'string', demandOption: true, describe: 'Your user' },
     p: { alias:'password', type: 'string', demandOption: false },
     k: { alias: 'noKeyring', type: 'boolean', default: false, demandOption: false, describe: 'Do not use system keyring'},
@@ -15,10 +14,9 @@ const argv = yargs.options({
     .help('h')
     .alias('h', 'help')
     .example('node $0 -u CODICEPERSONA \n', "Standard usage")
-    .example('node $0 -u CODICEPERSONA -v "https://elearning.unibs.it/course/view.php?id=15476" "https://elearning.unibs.it/course/view.php?id=15506"\n', "Multiple videos download")
     .example('node $0 -u CODICEPERSONA -k\n', "Do not save the password into system keyring")
     .argv;
-//console.info('\nVideo URLs: %s', argv.videoUrls);
+
 if(typeof argv.username !== 'undefined') {console.info('Email: %s', argv.username);}
 
 
