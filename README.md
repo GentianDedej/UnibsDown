@@ -20,7 +20,7 @@ Show options:
 Options:
   *--version             Show version number                           [boolean]*
   
-  *-u, --username         Codice Persona PoliMi               [string] [required]*
+  *-u, --username         Codice Persona Unibs               [string] [required]*
   
   *-k, --noKeyring        Do not use system keyring    [boolean] [default: false]*
   
