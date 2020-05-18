@@ -5,7 +5,7 @@ Install Nodejs form :https://nodejs.org/it/
 
 Install Chrome from :https://www.google.com/intl/it/chrome/
 
-Install Jdownloader form: https://jdownloader.org/
+Install Jdownloader from: https://jdownloader.org/
 
 # USAGE
 - Clone this repo
